@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phonon_github/api/api_service.dart';
-import 'package:phonon_github/api/api_url.dart';
+import 'package:phonon_github/api/api_response.dart';
+import 'package:phonon_github/api/repository_block.dart';
 import 'package:phonon_github/helpers/utilities.dart';
 import 'package:phonon_github/model/repository.dart';
 import 'package:phonon_github/widget/app_bar_widget.dart';
@@ -13,47 +13,20 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final List<Repository> _repositories = [];
-  bool _startLoading = false;
+  late RepositoryBloc _repositoryBloc;
 
   @override
   void initState() {
     super.initState();
 
-    _getAllRepositories("");
-  }
-
-//MARK: make netork call
-  void _getAllRepositories(String searchText) {
-    setState(() {
-      _startLoading = true;
-    });
-    var url = ApiUrl().getRepositoryUrl(searchText);
-    ApiService().getData(url).then((value) {
-      _repositories.clear();
-      var items = value["items"];
-      for (var item in items) {
-        var repo = Repository.fromJson(item);
-        _repositories.add(repo);
-      }
-      setState(() {});
-    }).whenComplete(() {
-      setState(() {
-        _startLoading = false;
-      });
-    }).onError((error, stackTrace) {});
-  }
-
-//MARK: search for the respository by name
-  void searchList(String text) {
-    _getAllRepositories(text);
+    _repositoryBloc = RepositoryBloc("");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBarWidget.primaryAppBar(),
-      body: SingleChildScrollView(
+        appBar: AppBarWidget.primaryAppBar(),
+        body: SingleChildScrollView(
           physics: const ScrollPhysics(),
           child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -64,31 +37,60 @@ class _SearchPageState extends State<SearchPage> {
                       horizontal: 16.0, vertical: 16),
                   child: TextField(
                     onChanged: (value) {
-                      searchList(value.toLowerCase());
+                      _repositoryBloc.fetchRepositories(value);
                     },
                     decoration: const InputDecoration(
                         labelText: 'Search by username',
                         prefixIcon: Icon(Icons.search)),
                   ),
                 ),
-                _startLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        separatorBuilder: (context, index) {
-                          return const Divider(
-                            color: Colors.black,
-                          );
-                        },
-                        itemCount: _repositories.length,
-                        itemBuilder: (context, index) {
-                          return _singleRowItem(_repositories[index]);
-                        })
-              ])),
+                RefreshIndicator(
+                  onRefresh: () => _repositoryBloc.fetchRepositories(""),
+                  child: StreamBuilder<ApiResponse<List<Repository>>>(
+                    stream: _repositoryBloc.githubRepoStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        switch (snapshot.data!.status) {
+                          case Status.LOADING:
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          case Status.COMPLETED:
+                            return _movieList(snapshot.data!.data);
+                          case Status.ERROR:
+                            return _errorView(snapshot.data!.message);
+                        }
+                      }
+                      return Container();
+                    },
+                  ),
+                )
+              ]),
+        ));
+  }
+
+  //MARK: present error message
+  Widget _errorView(String message) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text(message),
     );
+  }
+
+//MARK: show list of  repos
+  Widget _movieList(List<Repository> repositories) {
+    return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        separatorBuilder: (context, index) {
+          return const Divider(
+            color: Colors.black,
+          );
+        },
+        itemCount: repositories.length,
+        itemBuilder: (context, index) {
+          return _singleRowItem(repositories[index]);
+        });
   }
 
   //MARK: build the repository widget
@@ -116,5 +118,11 @@ class _SearchPageState extends State<SearchPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _repositoryBloc.dispose();
+    super.dispose();
   }
 }

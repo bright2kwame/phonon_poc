@@ -23,3 +23,22 @@ class Repository {
     return data[key].toString();
   }
 }
+
+class RepositoryResponse {
+  int totalCount = 0;
+  bool incompleteResults = false;
+  List<Repository> items = [];
+
+  RepositoryResponse(this.totalCount, this.incompleteResults, this.items);
+
+  RepositoryResponse.fromJson(Map<String, dynamic> json) {
+    totalCount = json['total_count'];
+    incompleteResults = json['incomplete_results'];
+    if (json['items'] != null) {
+      items = <Repository>[];
+      json['items'].forEach((v) {
+        items.add(Repository.fromJson(v));
+      });
+    }
+  }
+}

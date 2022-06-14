@@ -6,9 +6,9 @@ import 'package:phonon_github/resources/image_resource.dart';
 class AppBarWidget {
 //MARK:the app bar to be used in the app
   static primaryAppBar() => AppBar(
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          systemNavigationBarColor: Colors.white, // Navigation bar
-          statusBarColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          systemNavigationBarColor: AppColor.primaryDarkColor, // Navigation bar
+          statusBarColor: AppColor.primaryColor,
         ),
         iconTheme: const IconThemeData(
           color: Colors.white,
